@@ -1,0 +1,17 @@
+{
+  "name": "capstone_bangkit",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon src/server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+     "@hapi/hapi": "^21.3.0",
+    "nanoid": "^4.0.2",
+    "nodemon": "^2.0.22"
+  }
+}
