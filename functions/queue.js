@@ -18,7 +18,7 @@ firestore.settings({
 const admin = require('firebase-admin');
 const Queue = require('../models/queue');
 
-const queue = firestore.collection('queue');
+const queue = firestore.collection('queues');
 
 admin.initializeApp({
     credential: admin.credential.cert(CREDENTIALS)
