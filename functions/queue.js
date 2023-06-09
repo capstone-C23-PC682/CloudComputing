@@ -54,13 +54,12 @@ const addQueue = async (req, res, next) => {
 
     const {
         name,
-        time,
         status
     } = req.body;
 
-    if (!name || !time || !status) {
+    if (!name|| !status) {
         return res.status(400).json({
-            error: 'Name, time, and status are required fields'
+            error: 'Name and status are required fields'
         });
     }
 
@@ -84,7 +83,7 @@ const addQueue = async (req, res, next) => {
 
     blobStream.on('finish', () => {
         // Mendapatkan waktu server saat ini
-        const serverTimestamp = date.now();
+        const serverTimestamp =admin.firestore.FieldValue.serverTimestamp();
         // Simpan data ke Firestore atau lakukan tindakan lainnya
         const imageUrl = `https://storage.googleapis.com/${bucket.name}/${fileUpload.name}`;
         //  Menyimpan data ke Firestore
