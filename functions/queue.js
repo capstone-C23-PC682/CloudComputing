@@ -36,19 +36,12 @@ admin.initializeApp({
 });
 
 const addQueue = async (req, res, next) => {
-    /*try {
-        const data = req.body;
-        const timestamp = admin.firestore.FieldValue.serverTimestamp();
-        data.time = timestamp;
-        await queue.doc().set(data);
-        res.send('Record saved successfuly');
-    } catch (error) {
-        res.status(400).send(error.message);
-    }*/
+    const imageFile = req.file;
 
-    if (!req.file) {
+    if (!imageFile) {
         return res.status(400).json({
-            error: 'No image file provided'
+            status: 'fail',
+            message: 'Please upload an image file.',
         });
     }
 
@@ -57,45 +50,41 @@ const addQueue = async (req, res, next) => {
         status
     } = req.body;
 
-    if (!name|| !status) {
+    if (!name || !status) {
         return res.status(400).json({
             error: 'Name and status are required fields'
         });
     }
 
-    // Mendapatkan file yang diunggah
-    const file = req.file;
+    const filename = `${Date.now()}_${imageFile.originalname}`;
+    const file = bucket.file(filename);
+    const metadata = {
+        contentType: imageFile.mimetype,
+        cacheControl: 'max-age=720',
+    };
+    const stream = file.createWriteStream({
+        metadata,
+    });
 
-    // Menentukan path file di cloud storage
-    //   const storagePath = `images/${file.originalname}`;
-    const storagePath = `${Date.now()}_${file.originalname}`;;
-
-    // Mengunggah file ke bucket cloud storage
-    const fileUpload = bucket.file(storagePath);
-    const blobStream = fileUpload.createWriteStream();
-
-    blobStream.on('error', (error) => {
-        console.error(error);
+    stream.on('error', (error) => {
+        console.error('Error uploading image:', error);
         return res.status(500).json({
             error: 'Failed to upload image'
         });
     });
 
-    blobStream.on('finish', () => {
-        // Mendapatkan waktu server saat ini
-        const serverTimestamp =admin.firestore.FieldValue.serverTimestamp();
-        // Simpan data ke Firestore atau lakukan tindakan lainnya
-        const imageUrl = `https://storage.googleapis.com/${bucket.name}/${fileUpload.name}`;
-        //  Menyimpan data ke Firestore
+    stream.on('finish', () => {
+        const serverTimestamp = admin.firestore.FieldValue.serverTimestamp();
+        const image = `https://storage.googleapis.com/${bucket.name}/${file.name}`;
         queue.add({
                 name,
                 time: serverTimestamp,
-                imageUrl,
+                image,
                 status,
             })
             .then(() => {
                 return res.status(200).json({
-                    imageUrl
+                    image
                 });
             })
             .catch((error) => {
@@ -106,7 +95,7 @@ const addQueue = async (req, res, next) => {
             });
     });
 
-    blobStream.end(file.buffer);
+    stream.end(imageFile.buffer);
 }
 
 const getAllQueues = async (req, res, next) => {

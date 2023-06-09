@@ -1,4 +1,4 @@
-class Student {
+class Queue {
     constructor(id, name, time, image, status) {
         this.id = id;
         this.name = name;
@@ -8,4 +8,4 @@ class Student {
     }
 }
 
-module.exports = Student;
+module.exports = Queue;
