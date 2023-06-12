@@ -45,18 +45,16 @@ const addQueue = async (req, res, next) => {
         });
     }
 
-    const {
-        name,
-        status
-    } = req.body;
+    // const status = req.body;
 
-    if (!name || !status) {
-        return res.status(400).json({
-            error: 'Name and status are required fields'
-        });
+    const id_final = Math.floor(Math.random() * (10000 - 1 + 1)) + 1;
+    const name_final = `${id_final}_${Date.now()}`;
+    const status_number = 0;
+    let status = "Pending";
+    if (status_number != 0) {
+        status = "Success"
     }
-
-    const filename = `${Date.now()}_${imageFile.originalname}`;
+    const filename = `${name_final}_${imageFile.originalname}`;
     const file = bucket.file(filename);
     const metadata = {
         contentType: imageFile.mimetype,
@@ -74,17 +72,26 @@ const addQueue = async (req, res, next) => {
     });
 
     stream.on('finish', () => {
-        const serverTimestamp = admin.firestore.FieldValue.serverTimestamp();
+        // const serverTimestamp = admin.firestore.FieldValue.serverTimestamp();
+        const serverTimestamp = admin.firestore.Timestamp.now();
+        const seconds = serverTimestamp.seconds;
+        const nanoseconds = serverTimestamp.nanoseconds;
+        const jsDate = new Date(seconds * 1000 + nanoseconds / 1000000);
         const image = `https://storage.googleapis.com/${bucket.name}/${file.name}`;
         queue.add({
-                name,
+                id: id_final,
+                name: name_final,
                 time: serverTimestamp,
                 image,
                 status,
             })
             .then(() => {
                 return res.status(200).json({
-                    image
+                    id: id_final,
+                    name: name_final,
+                    time: jsDate,
+                    image,
+                    status,
                 });
             })
             .catch((error) => {
