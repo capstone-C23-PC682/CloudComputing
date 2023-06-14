@@ -1,9 +1,10 @@
 const {
     Firestore
 } = require('@google-cloud/firestore');
-const auth = require('./auth.js')
+const {
+    Storage
+} = require('@google-cloud/storage');
 const CREDENTIALS = require('../capstone-c23-pc682-61d81799d47b.json');
-const jwt = require('jsonwebtoken');
 const firestore = new Firestore({
     projectId: CREDENTIALS.project_id,
     credentials: {
@@ -12,47 +13,108 @@ const firestore = new Firestore({
     }
 
 });
+const storage = new Storage({
+    projectId: CREDENTIALS.project_id,
+    credentials: {
+        client_email: CREDENTIALS.client_email,
+        private_key: CREDENTIALS.private_key,
+    },
+});
 firestore.settings({
     ignoreUndefinedProperties: true
 })
-const Product = require('../models/product');
-
+const admin = require('firebase-admin');
 const product = firestore.collection('products');
-
+const bucketName = 'productgarbage';
+const bucket = storage.bucket(bucketName);
 
 const addProduct = async (req, res, next) => {
-    try {
-        const data = req.body;
-        await product.doc().set(data);
-        res.send('Record saved successfuly');
-    } catch (error) {
-        res.status(400).send(error.message);
+   
+    const {
+        name,
+        type,
+        desc,
+        id
+    } = req.body;
+ 
+
+    if (!name || !type || !desc) {
+        return res.status(400).json({
+            error: 'Name or type or desc are required fields'
+        });
     }
+
+    // Mendapatkan file yang diunggah
+    const file = req.file;
+    if (!req.file) {
+        return res.status(400).json({
+            error: 'No image file provided'
+        });
+    }
+    const storagePath = `${Date.now()}_${file.originalname}`;;
+
+    // Mengunggah file ke bucket cloud storage
+    const fileUpload = bucket.file(storagePath);
+    const blobStream = fileUpload.createWriteStream();
+
+    blobStream.on('error', (error) => {
+        console.error(error);
+        return res.status(500).json({
+            error: 'Failed to upload image'
+        });
+    });
+
+    blobStream.on('finish', () => {
+        const serverTimestamp =admin.firestore.FieldValue.serverTimestamp();
+        const imageUrl = `https://storage.googleapis.com/${bucket.name}/${fileUpload.name}`;
+        product.add({
+                name,
+                desc,
+                imageUrl,
+                type,
+                id,
+                createAt: serverTimestamp,
+            })
+            .then(() => {
+                return res.status(200).json({
+                    imageUrl
+                });
+            })
+            .catch((error) => {
+                console.error(error);
+                return res.status(500).json({
+                    error: 'Failed to save image data'
+                });
+            });
+    });
+
+    blobStream.end(file.buffer);
 }
 
 const getAllProducts = async (req, res, next) => {
     try {
-        const products = await product;
-        const data = await products.get();
-        const productsArray = [];
-        if (data.empty) {
-            res.status(404).send('No product record found');
+        let querySnapshot = await product.get();
+        if (querySnapshot.empty) {
+            return {
+                status: -1,
+                products: []
+            };
         } else {
-            data.forEach(doc => {
-                const product = new Product(
-                    doc.id,
-                    doc.data().name,
-                    doc.data().desc,
-                    doc.data().type
-                );
-                productsArray.push(product);
+            let products = []
+            querySnapshot.forEach(QueryDocumentSnapshot => {
+                let tempData = QueryDocumentSnapshot.data();
+                tempData['id'] = QueryDocumentSnapshot.id;
+                products.push(tempData);
             });
-            res.send(productsArray);
+           res.send({
+            products
+           })
         }
     } catch (error) {
-        res.status(400).send(error.message);
+        res.status(400).send(error.message)
+        };
     }
-}
+    
 
 const getProduct = async (req, res, next) => {
     try {

@@ -11,10 +11,12 @@ const firestore = new Firestore({
     }
     
 });
+const admin = require('firebase-admin');
 firestore.settings({ignoreUndefinedProperties: true})
 
 const userInformation = firestore.collection('userInformation');
 const account = firestore.collection('account');
+const history = firestore.collection('historyML');
 const maxAge= 2*24*60*60;
 const createToken=(id)=>{
     return jwt.sign({id},'apa aja boleh lhaa',{
@@ -66,6 +68,7 @@ const loginLogic= async(req,res,next)=>{
 }
 
 const createaccount = async (req,res,next) => {
+    const serverTimestamp =admin.firestore.FieldValue.serverTimestamp();
         const{
                 fname,
                 lname,
@@ -74,7 +77,7 @@ const createaccount = async (req,res,next) => {
                 password
             }=req.body
             const id = nanoid(16);
-            const registerat=new Date().toISOString();
+            const registerat=serverTimestamp;
             const collection=[];
             const historyid=[];
             const image="null";
@@ -227,11 +230,37 @@ const updateUserImage=async(id,data)=>{
     }
 }
 
+const getHistory = async (req, res) => {
+    try {
+      const ids = req.account.id;
+      const query = history.where('userId', '==', ids);
+      const snapshot = await query.get();
+  
+      const documentData = [];
+      snapshot.forEach((doc) => {
+        documentData.push(doc.data());
+      });
+  
+      res.send({
+        status: 'Success',
+        data: documentData
+      });
+    } catch (error) {
+      throw {
+        status: 'error',
+        message: 'Failed to get data.',
+        error: error.message
+      };
+    }
+  };
+  
+
 module.exports = {
     loginLogic,
     createaccount,
     getDocuments,
     getUsers,
     updateUser,
-    updateUserImage
+    updateUserImage,
+    getHistory
 };
